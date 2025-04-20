@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import pytz
 import logging
+import time
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -114,14 +115,29 @@ def get_market_data():
         
         # Fetch Russell 3000 data
         try:
-            # Try multiple tickers for Russell 3000
+            # Try multiple tickers for Russell 3000 with retries
             tickers = ["IWV", "VTHR", "VTI"]  # iShares Russell 3000, Vanguard Russell 3000, Vanguard Total Stock Market
+            max_retries = 3
+            retry_delay = 2  # seconds
+            
             for ticker in tickers:
                 logger.info(f"Trying ticker {ticker} for Russell 3000")
-                russell = yf.Ticker(ticker)
-                russell_data = russell.history(period=period, interval=interval)
+                for attempt in range(max_retries):
+                    try:
+                        russell = yf.Ticker(ticker)
+                        russell_data = russell.history(period=period, interval=interval)
+                        if not russell_data.empty:
+                            logger.info(f"Successfully fetched Russell 3000 data using {ticker}")
+                            break
+                        else:
+                            logger.warning(f"Empty data for {ticker}, attempt {attempt + 1}/{max_retries}")
+                            if attempt < max_retries - 1:
+                                time.sleep(retry_delay)
+                    except Exception as e:
+                        logger.warning(f"Attempt {attempt + 1}/{max_retries} failed for {ticker}: {str(e)}")
+                        if attempt < max_retries - 1:
+                            time.sleep(retry_delay)
                 if not russell_data.empty:
-                    logger.info(f"Successfully fetched Russell 3000 data using {ticker}")
                     break
             
             if not isinstance(russell_data, pd.DataFrame):
@@ -141,14 +157,29 @@ def get_market_data():
             
         # Fetch AGG data
         try:
-            # Try multiple tickers for Barclays US Aggregate
+            # Try multiple tickers for Barclays US Aggregate with retries
             tickers = ["BND", "AGG", "BOND"]  # Vanguard Total Bond Market, iShares Core U.S. Aggregate Bond, PIMCO Active Bond
+            max_retries = 3
+            retry_delay = 2  # seconds
+            
             for ticker in tickers:
                 logger.info(f"Trying ticker {ticker} for Barclays US Aggregate")
-                agg = yf.Ticker(ticker)
-                agg_data = agg.history(period=period, interval=interval)
+                for attempt in range(max_retries):
+                    try:
+                        agg = yf.Ticker(ticker)
+                        agg_data = agg.history(period=period, interval=interval)
+                        if not agg_data.empty:
+                            logger.info(f"Successfully fetched Barclays US Aggregate data using {ticker}")
+                            break
+                        else:
+                            logger.warning(f"Empty data for {ticker}, attempt {attempt + 1}/{max_retries}")
+                            if attempt < max_retries - 1:
+                                time.sleep(retry_delay)
+                    except Exception as e:
+                        logger.warning(f"Attempt {attempt + 1}/{max_retries} failed for {ticker}: {str(e)}")
+                        if attempt < max_retries - 1:
+                            time.sleep(retry_delay)
                 if not agg_data.empty:
-                    logger.info(f"Successfully fetched Barclays US Aggregate data using {ticker}")
                     break
             
             if not isinstance(agg_data, pd.DataFrame):
@@ -168,14 +199,29 @@ def get_market_data():
             
         # Fetch ACWX data
         try:
-            # Try multiple tickers for MSCI ACWI ex US
+            # Try multiple tickers for MSCI ACWI ex US with retries
             tickers = ["VXUS", "VEU", "ACWX"]  # Vanguard Total International Stock, Vanguard FTSE All-World ex-US, iShares MSCI ACWI ex-US
+            max_retries = 3
+            retry_delay = 2  # seconds
+            
             for ticker in tickers:
                 logger.info(f"Trying ticker {ticker} for MSCI ACWI ex US")
-                acwx = yf.Ticker(ticker)
-                acwx_data = acwx.history(period=period, interval=interval)
+                for attempt in range(max_retries):
+                    try:
+                        acwx = yf.Ticker(ticker)
+                        acwx_data = acwx.history(period=period, interval=interval)
+                        if not acwx_data.empty:
+                            logger.info(f"Successfully fetched MSCI ACWI ex US data using {ticker}")
+                            break
+                        else:
+                            logger.warning(f"Empty data for {ticker}, attempt {attempt + 1}/{max_retries}")
+                            if attempt < max_retries - 1:
+                                time.sleep(retry_delay)
+                    except Exception as e:
+                        logger.warning(f"Attempt {attempt + 1}/{max_retries} failed for {ticker}: {str(e)}")
+                        if attempt < max_retries - 1:
+                            time.sleep(retry_delay)
                 if not acwx_data.empty:
-                    logger.info(f"Successfully fetched MSCI ACWI ex US data using {ticker}")
                     break
             
             if not isinstance(acwx_data, pd.DataFrame):
