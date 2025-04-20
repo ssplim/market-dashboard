@@ -114,13 +114,21 @@ def get_market_data():
         
         # Fetch Russell 3000 data
         try:
-            russell = yf.Ticker("^RUA")
-            russell_data = russell.history(period=period, interval=interval)
+            # Try multiple tickers for Russell 3000
+            tickers = ["IWV", "VTHR", "VTI"]  # iShares Russell 3000, Vanguard Russell 3000, Vanguard Total Stock Market
+            for ticker in tickers:
+                logger.info(f"Trying ticker {ticker} for Russell 3000")
+                russell = yf.Ticker(ticker)
+                russell_data = russell.history(period=period, interval=interval)
+                if not russell_data.empty:
+                    logger.info(f"Successfully fetched Russell 3000 data using {ticker}")
+                    break
+            
             if not isinstance(russell_data, pd.DataFrame):
                 logger.error("Russell 3000 data is not a DataFrame")
                 russell_data = pd.DataFrame()
             elif russell_data.empty:
-                logger.error("Russell 3000 data is empty")
+                logger.error("Russell 3000 data is empty after trying all tickers")
                 st.error("Failed to fetch Russell 3000 data")
             elif 'Close' not in russell_data.columns:
                 logger.error("Russell 3000 data missing 'Close' column")
@@ -133,13 +141,21 @@ def get_market_data():
             
         # Fetch AGG data
         try:
-            agg = yf.Ticker("AGG")
-            agg_data = agg.history(period=period, interval=interval)
+            # Try multiple tickers for Barclays US Aggregate
+            tickers = ["BND", "AGG", "BOND"]  # Vanguard Total Bond Market, iShares Core U.S. Aggregate Bond, PIMCO Active Bond
+            for ticker in tickers:
+                logger.info(f"Trying ticker {ticker} for Barclays US Aggregate")
+                agg = yf.Ticker(ticker)
+                agg_data = agg.history(period=period, interval=interval)
+                if not agg_data.empty:
+                    logger.info(f"Successfully fetched Barclays US Aggregate data using {ticker}")
+                    break
+            
             if not isinstance(agg_data, pd.DataFrame):
                 logger.error("AGG data is not a DataFrame")
                 agg_data = pd.DataFrame()
             elif agg_data.empty:
-                logger.error("AGG data is empty")
+                logger.error("AGG data is empty after trying all tickers")
                 st.error("Failed to fetch Barclays US Aggregate data")
             elif 'Close' not in agg_data.columns:
                 logger.error("AGG data missing 'Close' column")
@@ -152,13 +168,21 @@ def get_market_data():
             
         # Fetch ACWX data
         try:
-            acwx = yf.Ticker("ACWX")
-            acwx_data = acwx.history(period=period, interval=interval)
+            # Try multiple tickers for MSCI ACWI ex US
+            tickers = ["VXUS", "VEU", "ACWX"]  # Vanguard Total International Stock, Vanguard FTSE All-World ex-US, iShares MSCI ACWI ex-US
+            for ticker in tickers:
+                logger.info(f"Trying ticker {ticker} for MSCI ACWI ex US")
+                acwx = yf.Ticker(ticker)
+                acwx_data = acwx.history(period=period, interval=interval)
+                if not acwx_data.empty:
+                    logger.info(f"Successfully fetched MSCI ACWI ex US data using {ticker}")
+                    break
+            
             if not isinstance(acwx_data, pd.DataFrame):
                 logger.error("ACWX data is not a DataFrame")
                 acwx_data = pd.DataFrame()
             elif acwx_data.empty:
-                logger.error("ACWX data is empty")
+                logger.error("ACWX data is empty after trying all tickers")
                 st.error("Failed to fetch MSCI ACWI ex US data")
             elif 'Close' not in acwx_data.columns:
                 logger.error("ACWX data missing 'Close' column")
