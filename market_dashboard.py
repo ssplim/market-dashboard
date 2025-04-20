@@ -31,44 +31,71 @@ def install_requirements():
 def calculate_returns(data, start_date):
     """Calculate percentage return from start date to present"""
     try:
-        if data.empty or 'Close' not in data.columns:
-            logger.warning("Invalid data frame provided to calculate_returns")
+        # Validate input data
+        if not isinstance(data, pd.DataFrame):
+            logger.warning("Invalid data type provided to calculate_returns")
+            return 0.0
+            
+        if data.empty:
+            logger.warning("Empty data frame provided to calculate_returns")
+            return 0.0
+            
+        if 'Close' not in data.columns:
+            logger.warning("Data frame missing 'Close' column")
             return 0.0
 
         # Convert start_date to timezone-aware datetime
-        start_date = pd.Timestamp(start_date).tz_localize('America/New_York')
+        try:
+            start_date = pd.Timestamp(start_date).tz_localize('America/New_York')
+        except Exception as e:
+            logger.error(f"Error converting start_date: {str(e)}")
+            return 0.0
         
         # Ensure data index is timezone-aware
-        if data.index.tz is None:
-            data.index = data.index.tz_localize('America/New_York')
+        try:
+            if data.index.tz is None:
+                data.index = data.index.tz_localize('America/New_York')
+        except Exception as e:
+            logger.error(f"Error localizing timezone: {str(e)}")
+            return 0.0
         
         # Sort data by index
-        data = data.sort_index()
+        try:
+            data = data.sort_index()
+        except Exception as e:
+            logger.error(f"Error sorting data: {str(e)}")
+            return 0.0
         
         # Get the first price after start_date
-        mask = data.index >= start_date
-        if not any(mask):
-            logger.warning(f"No data available after {start_date}")
-            return 0.0
-            
-        # Get the first available price after start_date
         try:
+            mask = data.index >= start_date
+            if not any(mask):
+                logger.warning(f"No data available after {start_date}")
+                return 0.0
+                
+            # Get the first available price after start_date
             start_price = data.loc[mask].iloc[0]['Close']
             end_price = data.iloc[-1]['Close']
+            
+            if pd.isna(start_price) or pd.isna(end_price):
+                logger.error("NaN values found in price data")
+                return 0.0
+                
+            if start_price == 0:
+                logger.error("Start price is zero, cannot calculate returns")
+                return 0.0
+                
+            return_value = (end_price / start_price - 1) * 100
+            logger.info(f"Calculated return: {return_value:.2f}%")
+            return return_value
         except IndexError as e:
             logger.error(f"IndexError in calculate_returns: {str(e)}")
             return 0.0
-        
-        if start_price == 0:
-            logger.error("Start price is zero, cannot calculate returns")
+        except Exception as e:
+            logger.error(f"Unexpected error in calculate_returns: {str(e)}")
             return 0.0
-            
-        return_value = (end_price / start_price - 1) * 100
-        logger.info(f"Calculated return: {return_value:.2f}%")
-        return return_value
     except Exception as e:
         logger.error(f"Error calculating returns: {str(e)}")
-        st.error(f"Error calculating returns: {str(e)}")
         return 0.0
 
 def get_market_data():
@@ -80,41 +107,62 @@ def get_market_data():
         period = "1y"
         interval = "1d"  # Daily data
         
-        russell = yf.Ticker("^RUA")
-        agg = yf.Ticker("AGG")
-        acwx = yf.Ticker("ACWX")
+        # Initialize empty dataframes
+        russell_data = pd.DataFrame()
+        agg_data = pd.DataFrame()
+        acwx_data = pd.DataFrame()
         
-        # Get data with error handling
+        # Fetch Russell 3000 data
         try:
+            russell = yf.Ticker("^RUA")
             russell_data = russell.history(period=period, interval=interval)
-            if russell_data.empty or 'Close' not in russell_data.columns:
-                logger.error("Failed to fetch Russell 3000 data")
-                st.error("Failed to fetch Russell 3000 data")
+            if not isinstance(russell_data, pd.DataFrame):
+                logger.error("Russell 3000 data is not a DataFrame")
                 russell_data = pd.DataFrame()
+            elif russell_data.empty:
+                logger.error("Russell 3000 data is empty")
+                st.error("Failed to fetch Russell 3000 data")
+            elif 'Close' not in russell_data.columns:
+                logger.error("Russell 3000 data missing 'Close' column")
+                st.error("Russell 3000 data is invalid")
             else:
                 logger.info(f"Russell 3000 data range: {russell_data.index[0]} to {russell_data.index[-1]}")
         except Exception as e:
             logger.error(f"Error fetching Russell 3000 data: {str(e)}")
             russell_data = pd.DataFrame()
             
+        # Fetch AGG data
         try:
+            agg = yf.Ticker("AGG")
             agg_data = agg.history(period=period, interval=interval)
-            if agg_data.empty or 'Close' not in agg_data.columns:
-                logger.error("Failed to fetch Barclays US Aggregate data")
-                st.error("Failed to fetch Barclays US Aggregate data")
+            if not isinstance(agg_data, pd.DataFrame):
+                logger.error("AGG data is not a DataFrame")
                 agg_data = pd.DataFrame()
+            elif agg_data.empty:
+                logger.error("AGG data is empty")
+                st.error("Failed to fetch Barclays US Aggregate data")
+            elif 'Close' not in agg_data.columns:
+                logger.error("AGG data missing 'Close' column")
+                st.error("AGG data is invalid")
             else:
                 logger.info(f"AGG data range: {agg_data.index[0]} to {agg_data.index[-1]}")
         except Exception as e:
             logger.error(f"Error fetching AGG data: {str(e)}")
             agg_data = pd.DataFrame()
             
+        # Fetch ACWX data
         try:
+            acwx = yf.Ticker("ACWX")
             acwx_data = acwx.history(period=period, interval=interval)
-            if acwx_data.empty or 'Close' not in acwx_data.columns:
-                logger.error("Failed to fetch MSCI ACWI ex US data")
-                st.error("Failed to fetch MSCI ACWI ex US data")
+            if not isinstance(acwx_data, pd.DataFrame):
+                logger.error("ACWX data is not a DataFrame")
                 acwx_data = pd.DataFrame()
+            elif acwx_data.empty:
+                logger.error("ACWX data is empty")
+                st.error("Failed to fetch MSCI ACWI ex US data")
+            elif 'Close' not in acwx_data.columns:
+                logger.error("ACWX data missing 'Close' column")
+                st.error("ACWX data is invalid")
             else:
                 logger.info(f"ACWX data range: {acwx_data.index[0]} to {acwx_data.index[-1]}")
         except Exception as e:
@@ -123,44 +171,65 @@ def get_market_data():
             
         return russell_data, agg_data, acwx_data
     except Exception as e:
-        logger.error(f"Error fetching market data: {str(e)}")
-        st.error(f"Error fetching market data: {str(e)}")
+        logger.error(f"Error in get_market_data: {str(e)}")
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
 def create_performance_chart(russell_data, agg_data, acwx_data, year_start):
     """Create a line chart showing all indices' performance as percentage change"""
     try:
+        # Validate input data
+        if not isinstance(russell_data, pd.DataFrame) or not isinstance(agg_data, pd.DataFrame) or not isinstance(acwx_data, pd.DataFrame):
+            logger.error("Invalid data type provided to create_performance_chart")
+            return go.Figure()
+            
         if russell_data.empty and agg_data.empty and acwx_data.empty:
             logger.warning("No data available for performance chart")
             st.warning("No data available for performance chart")
             return go.Figure()
 
         # Convert year_start to timezone-aware datetime
-        year_start = pd.Timestamp(year_start).tz_localize('America/New_York')
+        try:
+            year_start = pd.Timestamp(year_start).tz_localize('America/New_York')
+        except Exception as e:
+            logger.error(f"Error converting year_start: {str(e)}")
+            return go.Figure()
         
         fig = go.Figure()
         
         # Helper function to calculate percentage change
         def calculate_percentage_change(data, start_date):
-            if data.empty or 'Close' not in data.columns:
+            if not isinstance(data, pd.DataFrame):
+                logger.warning("Invalid data type in calculate_percentage_change")
+                return pd.Series()
+                
+            if data.empty:
+                logger.warning("Empty data frame in calculate_percentage_change")
+                return pd.Series()
+                
+            if 'Close' not in data.columns:
+                logger.warning("Data frame missing 'Close' column in calculate_percentage_change")
                 return pd.Series()
             
-            # Ensure data index is timezone-aware
-            if data.index.tz is None:
-                data.index = data.index.tz_localize('America/New_York')
-            
-            # Sort data by index
-            data = data.sort_index()
-            
-            # Get the first price after start_date
-            mask = data.index >= start_date
-            if not any(mask):
-                logger.warning(f"No data available after {start_date}")
-                return pd.Series()
-            
-            # Get the first available price after start_date
             try:
+                # Ensure data index is timezone-aware
+                if data.index.tz is None:
+                    data.index = data.index.tz_localize('America/New_York')
+                
+                # Sort data by index
+                data = data.sort_index()
+                
+                # Get the first price after start_date
+                mask = data.index >= start_date
+                if not any(mask):
+                    logger.warning(f"No data available after {start_date}")
+                    return pd.Series()
+                
+                # Get the first available price after start_date
                 start_price = data.loc[mask].iloc[0]['Close']
+                if pd.isna(start_price):
+                    logger.error("NaN value found in start price")
+                    return pd.Series()
+                    
                 if start_price == 0:
                     logger.error("Start price is zero, cannot calculate percentage change")
                     return pd.Series()
@@ -169,6 +238,9 @@ def create_performance_chart(russell_data, agg_data, acwx_data, year_start):
                 return ((data['Close'] / start_price - 1) * 100)
             except IndexError as e:
                 logger.error(f"IndexError in calculate_percentage_change: {str(e)}")
+                return pd.Series()
+            except Exception as e:
+                logger.error(f"Unexpected error in calculate_percentage_change: {str(e)}")
                 return pd.Series()
         
         # Add zero line
@@ -180,75 +252,84 @@ def create_performance_chart(russell_data, agg_data, acwx_data, year_start):
             if not russell_pct.empty and len(russell_pct) > 0:
                 try:
                     last_value = russell_pct.iloc[-1]
-                    fig.add_trace(go.Scatter(
-                        x=russell_pct.index,
-                        y=russell_pct.values,
-                        mode='lines',
-                        name='Russell 3000',
-                        line=dict(width=2)
-                    ))
-                    # Add annotation for the last value
-                    fig.add_annotation(
-                        x=russell_pct.index[-1],
-                        y=last_value,
-                        text=f'{last_value:.1f}%',
-                        showarrow=False,
-                        xanchor='left',
-                        yanchor='middle',
-                        xshift=10
-                    )
+                    if not pd.isna(last_value):
+                        fig.add_trace(go.Scatter(
+                            x=russell_pct.index,
+                            y=russell_pct.values,
+                            mode='lines',
+                            name='Russell 3000',
+                            line=dict(width=2)
+                        ))
+                        # Add annotation for the last value
+                        fig.add_annotation(
+                            x=russell_pct.index[-1],
+                            y=last_value,
+                            text=f'{last_value:.1f}%',
+                            showarrow=False,
+                            xanchor='left',
+                            yanchor='middle',
+                            xshift=10
+                        )
                 except IndexError as e:
                     logger.error(f"IndexError adding Russell 3000 to chart: {str(e)}")
+                except Exception as e:
+                    logger.error(f"Unexpected error adding Russell 3000 to chart: {str(e)}")
                 
         if not acwx_data.empty:
             acwx_pct = calculate_percentage_change(acwx_data, year_start)
             if not acwx_pct.empty and len(acwx_pct) > 0:
                 try:
                     last_value = acwx_pct.iloc[-1]
-                    fig.add_trace(go.Scatter(
-                        x=acwx_pct.index,
-                        y=acwx_pct.values,
-                        mode='lines',
-                        name='MSCI ACWI ex US',
-                        line=dict(width=2)
-                    ))
-                    # Add annotation for the last value
-                    fig.add_annotation(
-                        x=acwx_pct.index[-1],
-                        y=last_value,
-                        text=f'{last_value:.1f}%',
-                        showarrow=False,
-                        xanchor='left',
-                        yanchor='middle',
-                        xshift=10
-                    )
+                    if not pd.isna(last_value):
+                        fig.add_trace(go.Scatter(
+                            x=acwx_pct.index,
+                            y=acwx_pct.values,
+                            mode='lines',
+                            name='MSCI ACWI ex US',
+                            line=dict(width=2)
+                        ))
+                        # Add annotation for the last value
+                        fig.add_annotation(
+                            x=acwx_pct.index[-1],
+                            y=last_value,
+                            text=f'{last_value:.1f}%',
+                            showarrow=False,
+                            xanchor='left',
+                            yanchor='middle',
+                            xshift=10
+                        )
                 except IndexError as e:
                     logger.error(f"IndexError adding ACWX to chart: {str(e)}")
+                except Exception as e:
+                    logger.error(f"Unexpected error adding ACWX to chart: {str(e)}")
                 
         if not agg_data.empty:
             agg_pct = calculate_percentage_change(agg_data, year_start)
             if not agg_pct.empty and len(agg_pct) > 0:
                 try:
                     last_value = agg_pct.iloc[-1]
-                    fig.add_trace(go.Scatter(
-                        x=agg_pct.index,
-                        y=agg_pct.values,
-                        mode='lines',
-                        name='Barclays US Aggregate',
-                        line=dict(width=2)
-                    ))
-                    # Add annotation for the last value
-                    fig.add_annotation(
-                        x=agg_pct.index[-1],
-                        y=last_value,
-                        text=f'{last_value:.1f}%',
-                        showarrow=False,
-                        xanchor='left',
-                        yanchor='middle',
-                        xshift=10
-                    )
+                    if not pd.isna(last_value):
+                        fig.add_trace(go.Scatter(
+                            x=agg_pct.index,
+                            y=agg_pct.values,
+                            mode='lines',
+                            name='Barclays US Aggregate',
+                            line=dict(width=2)
+                        ))
+                        # Add annotation for the last value
+                        fig.add_annotation(
+                            x=agg_pct.index[-1],
+                            y=last_value,
+                            text=f'{last_value:.1f}%',
+                            showarrow=False,
+                            xanchor='left',
+                            yanchor='middle',
+                            xshift=10
+                        )
                 except IndexError as e:
                     logger.error(f"IndexError adding AGG to chart: {str(e)}")
+                except Exception as e:
+                    logger.error(f"Unexpected error adding AGG to chart: {str(e)}")
 
         if len(fig.data) == 0:
             logger.warning("No data available for the selected time period")
