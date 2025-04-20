@@ -52,8 +52,12 @@ def calculate_returns(data, start_date):
             return 0.0
             
         # Get the first available price after start_date
-        start_price = data.loc[mask].iloc[0]['Close']
-        end_price = data.iloc[-1]['Close']
+        try:
+            start_price = data.loc[mask].iloc[0]['Close']
+            end_price = data.iloc[-1]['Close']
+        except IndexError as e:
+            logger.error(f"IndexError in calculate_returns: {str(e)}")
+            return 0.0
         
         if start_price == 0:
             logger.error("Start price is zero, cannot calculate returns")
@@ -81,29 +85,41 @@ def get_market_data():
         acwx = yf.Ticker("ACWX")
         
         # Get data with error handling
-        russell_data = russell.history(period=period, interval=interval)
-        if russell_data.empty or 'Close' not in russell_data.columns:
-            logger.error("Failed to fetch Russell 3000 data")
-            st.error("Failed to fetch Russell 3000 data")
+        try:
+            russell_data = russell.history(period=period, interval=interval)
+            if russell_data.empty or 'Close' not in russell_data.columns:
+                logger.error("Failed to fetch Russell 3000 data")
+                st.error("Failed to fetch Russell 3000 data")
+                russell_data = pd.DataFrame()
+            else:
+                logger.info(f"Russell 3000 data range: {russell_data.index[0]} to {russell_data.index[-1]}")
+        except Exception as e:
+            logger.error(f"Error fetching Russell 3000 data: {str(e)}")
             russell_data = pd.DataFrame()
-        else:
-            logger.info(f"Russell 3000 data range: {russell_data.index[0]} to {russell_data.index[-1]}")
             
-        agg_data = agg.history(period=period, interval=interval)
-        if agg_data.empty or 'Close' not in agg_data.columns:
-            logger.error("Failed to fetch Barclays US Aggregate data")
-            st.error("Failed to fetch Barclays US Aggregate data")
+        try:
+            agg_data = agg.history(period=period, interval=interval)
+            if agg_data.empty or 'Close' not in agg_data.columns:
+                logger.error("Failed to fetch Barclays US Aggregate data")
+                st.error("Failed to fetch Barclays US Aggregate data")
+                agg_data = pd.DataFrame()
+            else:
+                logger.info(f"AGG data range: {agg_data.index[0]} to {agg_data.index[-1]}")
+        except Exception as e:
+            logger.error(f"Error fetching AGG data: {str(e)}")
             agg_data = pd.DataFrame()
-        else:
-            logger.info(f"AGG data range: {agg_data.index[0]} to {agg_data.index[-1]}")
             
-        acwx_data = acwx.history(period=period, interval=interval)
-        if acwx_data.empty or 'Close' not in acwx_data.columns:
-            logger.error("Failed to fetch MSCI ACWI ex US data")
-            st.error("Failed to fetch MSCI ACWI ex US data")
+        try:
+            acwx_data = acwx.history(period=period, interval=interval)
+            if acwx_data.empty or 'Close' not in acwx_data.columns:
+                logger.error("Failed to fetch MSCI ACWI ex US data")
+                st.error("Failed to fetch MSCI ACWI ex US data")
+                acwx_data = pd.DataFrame()
+            else:
+                logger.info(f"ACWX data range: {acwx_data.index[0]} to {acwx_data.index[-1]}")
+        except Exception as e:
+            logger.error(f"Error fetching ACWX data: {str(e)}")
             acwx_data = pd.DataFrame()
-        else:
-            logger.info(f"ACWX data range: {acwx_data.index[0]} to {acwx_data.index[-1]}")
             
         return russell_data, agg_data, acwx_data
     except Exception as e:
@@ -143,13 +159,17 @@ def create_performance_chart(russell_data, agg_data, acwx_data, year_start):
                 return pd.Series()
             
             # Get the first available price after start_date
-            start_price = data.loc[mask].iloc[0]['Close']
-            if start_price == 0:
-                logger.error("Start price is zero, cannot calculate percentage change")
+            try:
+                start_price = data.loc[mask].iloc[0]['Close']
+                if start_price == 0:
+                    logger.error("Start price is zero, cannot calculate percentage change")
+                    return pd.Series()
+                
+                # Calculate percentage change from start date
+                return ((data['Close'] / start_price - 1) * 100)
+            except IndexError as e:
+                logger.error(f"IndexError in calculate_percentage_change: {str(e)}")
                 return pd.Series()
-            
-            # Calculate percentage change from start date
-            return ((data['Close'] / start_price - 1) * 100)
         
         # Add zero line
         fig.add_hline(y=0, line_width=2, line_dash="solid", line_color="black")
@@ -158,68 +178,77 @@ def create_performance_chart(russell_data, agg_data, acwx_data, year_start):
         if not russell_data.empty:
             russell_pct = calculate_percentage_change(russell_data, year_start)
             if not russell_pct.empty and len(russell_pct) > 0:
-                last_value = russell_pct.iloc[-1]
-                fig.add_trace(go.Scatter(
-                    x=russell_pct.index,
-                    y=russell_pct.values,
-                    mode='lines',
-                    name='Russell 3000',
-                    line=dict(width=2)
-                ))
-                # Add annotation for the last value
-                fig.add_annotation(
-                    x=russell_pct.index[-1],
-                    y=last_value,
-                    text=f'{last_value:.1f}%',
-                    showarrow=False,
-                    xanchor='left',
-                    yanchor='middle',
-                    xshift=10
-                )
+                try:
+                    last_value = russell_pct.iloc[-1]
+                    fig.add_trace(go.Scatter(
+                        x=russell_pct.index,
+                        y=russell_pct.values,
+                        mode='lines',
+                        name='Russell 3000',
+                        line=dict(width=2)
+                    ))
+                    # Add annotation for the last value
+                    fig.add_annotation(
+                        x=russell_pct.index[-1],
+                        y=last_value,
+                        text=f'{last_value:.1f}%',
+                        showarrow=False,
+                        xanchor='left',
+                        yanchor='middle',
+                        xshift=10
+                    )
+                except IndexError as e:
+                    logger.error(f"IndexError adding Russell 3000 to chart: {str(e)}")
                 
         if not acwx_data.empty:
             acwx_pct = calculate_percentage_change(acwx_data, year_start)
             if not acwx_pct.empty and len(acwx_pct) > 0:
-                last_value = acwx_pct.iloc[-1]
-                fig.add_trace(go.Scatter(
-                    x=acwx_pct.index,
-                    y=acwx_pct.values,
-                    mode='lines',
-                    name='MSCI ACWI ex US',
-                    line=dict(width=2)
-                ))
-                # Add annotation for the last value
-                fig.add_annotation(
-                    x=acwx_pct.index[-1],
-                    y=last_value,
-                    text=f'{last_value:.1f}%',
-                    showarrow=False,
-                    xanchor='left',
-                    yanchor='middle',
-                    xshift=10
-                )
+                try:
+                    last_value = acwx_pct.iloc[-1]
+                    fig.add_trace(go.Scatter(
+                        x=acwx_pct.index,
+                        y=acwx_pct.values,
+                        mode='lines',
+                        name='MSCI ACWI ex US',
+                        line=dict(width=2)
+                    ))
+                    # Add annotation for the last value
+                    fig.add_annotation(
+                        x=acwx_pct.index[-1],
+                        y=last_value,
+                        text=f'{last_value:.1f}%',
+                        showarrow=False,
+                        xanchor='left',
+                        yanchor='middle',
+                        xshift=10
+                    )
+                except IndexError as e:
+                    logger.error(f"IndexError adding ACWX to chart: {str(e)}")
                 
         if not agg_data.empty:
             agg_pct = calculate_percentage_change(agg_data, year_start)
             if not agg_pct.empty and len(agg_pct) > 0:
-                last_value = agg_pct.iloc[-1]
-                fig.add_trace(go.Scatter(
-                    x=agg_pct.index,
-                    y=agg_pct.values,
-                    mode='lines',
-                    name='Barclays US Aggregate',
-                    line=dict(width=2)
-                ))
-                # Add annotation for the last value
-                fig.add_annotation(
-                    x=agg_pct.index[-1],
-                    y=last_value,
-                    text=f'{last_value:.1f}%',
-                    showarrow=False,
-                    xanchor='left',
-                    yanchor='middle',
-                    xshift=10
-                )
+                try:
+                    last_value = agg_pct.iloc[-1]
+                    fig.add_trace(go.Scatter(
+                        x=agg_pct.index,
+                        y=agg_pct.values,
+                        mode='lines',
+                        name='Barclays US Aggregate',
+                        line=dict(width=2)
+                    ))
+                    # Add annotation for the last value
+                    fig.add_annotation(
+                        x=agg_pct.index[-1],
+                        y=last_value,
+                        text=f'{last_value:.1f}%',
+                        showarrow=False,
+                        xanchor='left',
+                        yanchor='middle',
+                        xshift=10
+                    )
+                except IndexError as e:
+                    logger.error(f"IndexError adding AGG to chart: {str(e)}")
 
         if len(fig.data) == 0:
             logger.warning("No data available for the selected time period")
