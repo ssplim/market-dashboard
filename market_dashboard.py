@@ -3,6 +3,7 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import pytz
 
 def install_requirements():
     """Install required packages if not already installed"""
@@ -12,7 +13,8 @@ def install_requirements():
         'streamlit==1.32.0',
         'yfinance==0.2.36',
         'pandas==2.2.1',
-        'plotly==5.18.0'
+        'plotly==5.18.0',
+        'pytz'
     ]
     for package in requirements:
         try:
@@ -22,6 +24,9 @@ def install_requirements():
 
 def calculate_returns(data, start_date):
     """Calculate percentage return from start date to present"""
+    # Convert start_date to timezone-aware datetime
+    start_date = pd.Timestamp(start_date).tz_localize('America/New_York')
+    # Get the last price before or on start_date
     start_price = data[data.index <= start_date].iloc[-1]['Close']
     end_price = data.iloc[-1]['Close']
     return (end_price / start_price - 1) * 100
@@ -36,6 +41,8 @@ def get_market_data():
 
 def create_performance_chart(russell_data, agg_data, year_start):
     """Create a line chart showing both indices' performance"""
+    # Convert year_start to timezone-aware datetime
+    year_start = pd.Timestamp(year_start).tz_localize('America/New_York')
     current_year_russell = russell_data[russell_data.index >= year_start]
     current_year_agg = agg_data[agg_data.index >= year_start]
 
