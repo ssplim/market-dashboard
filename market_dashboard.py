@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import pytz
 import logging
 import time
+from functools import lru_cache
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -99,6 +100,8 @@ def calculate_returns(data, start_date):
         logger.error(f"Error calculating returns: {str(e)}")
         return 0.0
 
+# Cache market data for 5 minutes
+@st.cache_data(ttl=300)
 def get_market_data():
     """Fetch data for all indices"""
     try:
@@ -116,21 +119,18 @@ def get_market_data():
         # Fetch Russell 3000 data
         try:
             # Try multiple tickers for Russell 3000 with retries
-            tickers = ["VTI", "SPY", "IVV", "IWB", "VOO"]  # Added more ETF options
-            max_retries = 5  # Increased retries
-            retry_delay = 3  # Increased delay
+            tickers = ["VTI", "SPY", "IVV"]  # Reduced number of tickers
+            max_retries = 2  # Reduced retries
+            retry_delay = 1  # Reduced delay
             
             for ticker in tickers:
                 logger.info(f"Trying ticker {ticker} for Russell 3000")
                 for attempt in range(max_retries):
                     try:
                         russell = yf.Ticker(ticker)
-                        logger.info(f"Fetching data for {ticker}...")
                         russell_data = russell.history(period=period, interval=interval)
-                        logger.info(f"Data shape for {ticker}: {russell_data.shape}")
-                        if not russell_data.empty and len(russell_data) > 10:  # Added minimum data check
+                        if not russell_data.empty and len(russell_data) > 10:
                             logger.info(f"Successfully fetched Russell 3000 data using {ticker}")
-                            logger.info(f"Sample data: {russell_data.head()}")
                             break
                         else:
                             logger.warning(f"Empty or insufficient data for {ticker}, attempt {attempt + 1}/{max_retries}")
@@ -138,7 +138,6 @@ def get_market_data():
                                 time.sleep(retry_delay)
                     except Exception as e:
                         logger.error(f"Error fetching {ticker}: {str(e)}")
-                        logger.error(f"Error type: {type(e)}")
                         if attempt < max_retries - 1:
                             time.sleep(retry_delay)
                 if not russell_data.empty and len(russell_data) > 10:
@@ -153,31 +152,25 @@ def get_market_data():
             elif 'Close' not in russell_data.columns:
                 logger.error("Russell 3000 data missing 'Close' column")
                 st.error("Russell 3000 data is invalid")
-            else:
-                logger.info(f"Russell 3000 data range: {russell_data.index[0]} to {russell_data.index[-1]}")
         except Exception as e:
             logger.error(f"Error fetching Russell 3000 data: {str(e)}")
-            logger.error(f"Error type: {type(e)}")
             russell_data = pd.DataFrame()
             
         # Fetch AGG data
         try:
             # Try multiple tickers for Barclays US Aggregate with retries
-            tickers = ["BND", "AGG", "IEF", "TLT", "BIL"]  # Added more bond ETF options
-            max_retries = 5  # Increased retries
-            retry_delay = 3  # Increased delay
+            tickers = ["BND", "AGG"]  # Reduced number of tickers
+            max_retries = 2  # Reduced retries
+            retry_delay = 1  # Reduced delay
             
             for ticker in tickers:
                 logger.info(f"Trying ticker {ticker} for Barclays US Aggregate")
                 for attempt in range(max_retries):
                     try:
                         agg = yf.Ticker(ticker)
-                        logger.info(f"Fetching data for {ticker}...")
                         agg_data = agg.history(period=period, interval=interval)
-                        logger.info(f"Data shape for {ticker}: {agg_data.shape}")
-                        if not agg_data.empty and len(agg_data) > 10:  # Added minimum data check
+                        if not agg_data.empty and len(agg_data) > 10:
                             logger.info(f"Successfully fetched Barclays US Aggregate data using {ticker}")
-                            logger.info(f"Sample data: {agg_data.head()}")
                             break
                         else:
                             logger.warning(f"Empty or insufficient data for {ticker}, attempt {attempt + 1}/{max_retries}")
@@ -185,7 +178,6 @@ def get_market_data():
                                 time.sleep(retry_delay)
                     except Exception as e:
                         logger.error(f"Error fetching {ticker}: {str(e)}")
-                        logger.error(f"Error type: {type(e)}")
                         if attempt < max_retries - 1:
                             time.sleep(retry_delay)
                 if not agg_data.empty and len(agg_data) > 10:
@@ -200,31 +192,25 @@ def get_market_data():
             elif 'Close' not in agg_data.columns:
                 logger.error("AGG data missing 'Close' column")
                 st.error("AGG data is invalid")
-            else:
-                logger.info(f"AGG data range: {agg_data.index[0]} to {agg_data.index[-1]}")
         except Exception as e:
             logger.error(f"Error fetching AGG data: {str(e)}")
-            logger.error(f"Error type: {type(e)}")
             agg_data = pd.DataFrame()
             
         # Fetch ACWX data
         try:
             # Try multiple tickers for MSCI ACWI ex US with retries
-            tickers = ["ACWX", "VEU", "VXUS", "IXUS", "IEFA"]  # Added more international ETF options
-            max_retries = 5  # Increased retries
-            retry_delay = 3  # Increased delay
+            tickers = ["ACWX", "VXUS"]  # Reduced number of tickers
+            max_retries = 2  # Reduced retries
+            retry_delay = 1  # Reduced delay
             
             for ticker in tickers:
                 logger.info(f"Trying ticker {ticker} for MSCI ACWI ex US")
                 for attempt in range(max_retries):
                     try:
                         acwx = yf.Ticker(ticker)
-                        logger.info(f"Fetching data for {ticker}...")
                         acwx_data = acwx.history(period=period, interval=interval)
-                        logger.info(f"Data shape for {ticker}: {acwx_data.shape}")
-                        if not acwx_data.empty and len(acwx_data) > 10:  # Added minimum data check
+                        if not acwx_data.empty and len(acwx_data) > 10:
                             logger.info(f"Successfully fetched MSCI ACWI ex US data using {ticker}")
-                            logger.info(f"Sample data: {acwx_data.head()}")
                             break
                         else:
                             logger.warning(f"Empty or insufficient data for {ticker}, attempt {attempt + 1}/{max_retries}")
@@ -232,7 +218,6 @@ def get_market_data():
                                 time.sleep(retry_delay)
                     except Exception as e:
                         logger.error(f"Error fetching {ticker}: {str(e)}")
-                        logger.error(f"Error type: {type(e)}")
                         if attempt < max_retries - 1:
                             time.sleep(retry_delay)
                 if not acwx_data.empty and len(acwx_data) > 10:
@@ -247,19 +232,18 @@ def get_market_data():
             elif 'Close' not in acwx_data.columns:
                 logger.error("ACWX data missing 'Close' column")
                 st.error("ACWX data is invalid")
-            else:
-                logger.info(f"ACWX data range: {acwx_data.index[0]} to {acwx_data.index[-1]}")
         except Exception as e:
             logger.error(f"Error fetching ACWX data: {str(e)}")
-            logger.error(f"Error type: {type(e)}")
             acwx_data = pd.DataFrame()
             
         return russell_data, agg_data, acwx_data
+        
     except Exception as e:
         logger.error(f"Unexpected error in get_market_data: {str(e)}")
-        logger.error(f"Error type: {type(e)}")
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
+# Cache the performance chart for 5 minutes
+@st.cache_data(ttl=300)
 def create_performance_chart(russell_data, agg_data, acwx_data, year_start):
     """Create a line chart showing all indices' performance as percentage change"""
     try:
