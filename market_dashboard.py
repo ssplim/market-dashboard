@@ -6,29 +6,52 @@ from datetime import datetime, timedelta
 import pytz
 import logging
 import time
+import sys
+import subprocess
+import os
 from functools import lru_cache
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+# Set up logging with more detailed output
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 logger = logging.getLogger(__name__)
 
-def install_requirements():
-    """Install required packages if not already installed"""
-    import subprocess
-    import sys
-    requirements = [
-        'streamlit==1.32.0',
-        'yfinance==0.2.36',
-        'pandas==2.2.1',
-        'plotly==5.18.0',
-        'pytz'
-    ]
-    for package in requirements:
-        try:
-            __import__(package.split('==')[0])
-        except ImportError:
-            logger.info(f"Installing {package}")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+def check_dependencies():
+    """Check and install required packages"""
+    try:
+        required_packages = {
+            'streamlit': '1.32.0',
+            'yfinance': '0.2.55',
+            'pandas': '2.2.1',
+            'plotly': '5.18.0',
+            'pytz': None
+        }
+        
+        for package, version in required_packages.items():
+            try:
+                if version:
+                    __import__(package)
+                    installed_version = sys.modules[package].__version__
+                    if installed_version != version:
+                        logger.info(f"Upgrading {package} from {installed_version} to {version}")
+                        subprocess.check_call([sys.executable, "-m", "pip", "install", f"{package}=={version}"])
+                else:
+                    __import__(package)
+            except ImportError:
+                logger.info(f"Installing {package}")
+                if version:
+                    subprocess.check_call([sys.executable, "-m", "pip", "install", f"{package}=={version}"])
+                else:
+                    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+    except Exception as e:
+        logger.error(f"Error checking/installing dependencies: {str(e)}")
+        st.error(f"Error checking/installing dependencies: {str(e)}")
+        sys.exit(1)
 
 def calculate_returns(data, start_date):
     """Calculate percentage return from start date to present"""
@@ -119,16 +142,17 @@ def get_market_data():
         # Fetch Russell 3000 data
         try:
             # Try multiple tickers for Russell 3000 with retries
-            tickers = ["VTI", "SPY", "IVV"]  # Reduced number of tickers
-            max_retries = 2  # Reduced retries
-            retry_delay = 1  # Reduced delay
+            tickers = ["VTI", "SPY", "IVV", "IWB", "VOO"]  # More ETF options
+            max_retries = 3  # Increased retries
+            retry_delay = 2  # Increased delay
             
             for ticker in tickers:
                 logger.info(f"Trying ticker {ticker} for Russell 3000")
                 for attempt in range(max_retries):
                     try:
                         russell = yf.Ticker(ticker)
-                        russell_data = russell.history(period=period, interval=interval)
+                        # Add a timeout to the history call
+                        russell_data = russell.history(period=period, interval=interval, timeout=10)
                         if not russell_data.empty and len(russell_data) > 10:
                             logger.info(f"Successfully fetched Russell 3000 data using {ticker}")
                             break
@@ -159,16 +183,17 @@ def get_market_data():
         # Fetch AGG data
         try:
             # Try multiple tickers for Barclays US Aggregate with retries
-            tickers = ["BND", "AGG"]  # Reduced number of tickers
-            max_retries = 2  # Reduced retries
-            retry_delay = 1  # Reduced delay
+            tickers = ["BND", "AGG", "IEF", "TLT", "BIL"]  # More bond ETF options
+            max_retries = 3  # Increased retries
+            retry_delay = 2  # Increased delay
             
             for ticker in tickers:
                 logger.info(f"Trying ticker {ticker} for Barclays US Aggregate")
                 for attempt in range(max_retries):
                     try:
                         agg = yf.Ticker(ticker)
-                        agg_data = agg.history(period=period, interval=interval)
+                        # Add a timeout to the history call
+                        agg_data = agg.history(period=period, interval=interval, timeout=10)
                         if not agg_data.empty and len(agg_data) > 10:
                             logger.info(f"Successfully fetched Barclays US Aggregate data using {ticker}")
                             break
@@ -199,16 +224,17 @@ def get_market_data():
         # Fetch ACWX data
         try:
             # Try multiple tickers for MSCI ACWI ex US with retries
-            tickers = ["ACWX", "VXUS"]  # Reduced number of tickers
-            max_retries = 2  # Reduced retries
-            retry_delay = 1  # Reduced delay
+            tickers = ["ACWX", "VEU", "VXUS", "IXUS", "IEFA"]  # More international ETF options
+            max_retries = 3  # Increased retries
+            retry_delay = 2  # Increased delay
             
             for ticker in tickers:
                 logger.info(f"Trying ticker {ticker} for MSCI ACWI ex US")
                 for attempt in range(max_retries):
                     try:
                         acwx = yf.Ticker(ticker)
-                        acwx_data = acwx.history(period=period, interval=interval)
+                        # Add a timeout to the history call
+                        acwx_data = acwx.history(period=period, interval=interval, timeout=10)
                         if not acwx_data.empty and len(acwx_data) > 10:
                             logger.info(f"Successfully fetched MSCI ACWI ex US data using {ticker}")
                             break
@@ -434,8 +460,8 @@ def create_performance_chart(russell_data, agg_data, acwx_data, year_start):
 
 def main():
     try:
-        # Install requirements if needed
-        install_requirements()
+        # Check and install dependencies
+        check_dependencies()
 
         # Set page config
         st.set_page_config(page_title="Market Returns Dashboard", layout="wide")
