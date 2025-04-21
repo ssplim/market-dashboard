@@ -376,8 +376,6 @@ def create_performance_chart(russell_data, agg_data, acwx_data, year_start):
 
 def main():
     try:
-        # Check and install dependencies
-        check_dependencies()
 
         # Set page config
         st.set_page_config(page_title="Market Returns Dashboard", layout="wide")
