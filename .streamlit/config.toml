@@ -1,0 +1,20 @@
+[server]
+enableCORS = true
+enableXsrfProtection = false
+address = "0.0.0.0"
+port = 8000
+maxUploadSize = 200
+maxMessageSize = 200
+[browser]
+serverAddress = "0.0.0.0"
+serverPort = 8000
+gatherUsageStats = false
+[client]
+toolbarMode = "minimal"
+showErrorDetails = false
+[theme]
+primaryColor = "#FF4B4B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+font = "sans serif" 

@@ -123,8 +123,8 @@ def calculate_returns(data, start_date):
         logger.error(f"Error calculating returns: {str(e)}")
         return 0.0
 
-# Cache market data for 5 minutes
-@st.cache_data(ttl=300)
+# Cache market data for 1 hour
+@st.cache_data(ttl=3600)
 def get_market_data():
     """Fetch data for all indices"""
     try:
@@ -139,125 +139,41 @@ def get_market_data():
         agg_data = pd.DataFrame()
         acwx_data = pd.DataFrame()
         
-        # Fetch Russell 3000 data
+        # Fetch Russell 3000 data - use only the most reliable ticker
         try:
-            # Try multiple tickers for Russell 3000 with retries
-            tickers = ["VTI", "SPY", "IVV", "IWB", "VOO"]  # More ETF options
-            max_retries = 3  # Increased retries
-            retry_delay = 2  # Increased delay
-            
-            for ticker in tickers:
-                logger.info(f"Trying ticker {ticker} for Russell 3000")
-                for attempt in range(max_retries):
-                    try:
-                        russell = yf.Ticker(ticker)
-                        # Add a timeout to the history call
-                        russell_data = russell.history(period=period, interval=interval, timeout=10)
-                        if not russell_data.empty and len(russell_data) > 10:
-                            logger.info(f"Successfully fetched Russell 3000 data using {ticker}")
-                            break
-                        else:
-                            logger.warning(f"Empty or insufficient data for {ticker}, attempt {attempt + 1}/{max_retries}")
-                            if attempt < max_retries - 1:
-                                time.sleep(retry_delay)
-                    except Exception as e:
-                        logger.error(f"Error fetching {ticker}: {str(e)}")
-                        if attempt < max_retries - 1:
-                            time.sleep(retry_delay)
-                if not russell_data.empty and len(russell_data) > 10:
-                    break
-            
-            if not isinstance(russell_data, pd.DataFrame):
-                logger.error("Russell 3000 data is not a DataFrame")
+            russell = yf.Ticker("VTI")
+            russell_data = russell.history(period=period, interval=interval, timeout=10)
+            if not russell_data.empty and len(russell_data) > 10:
+                logger.info("Successfully fetched Russell 3000 data")
+            else:
+                logger.warning("Empty or insufficient Russell 3000 data")
                 russell_data = pd.DataFrame()
-            elif russell_data.empty:
-                logger.error("Russell 3000 data is empty after trying all tickers")
-                st.error("Failed to fetch Russell 3000 data")
-            elif 'Close' not in russell_data.columns:
-                logger.error("Russell 3000 data missing 'Close' column")
-                st.error("Russell 3000 data is invalid")
         except Exception as e:
             logger.error(f"Error fetching Russell 3000 data: {str(e)}")
             russell_data = pd.DataFrame()
             
-        # Fetch AGG data
+        # Fetch AGG data - use only the most reliable ticker
         try:
-            # Try multiple tickers for Barclays US Aggregate with retries
-            tickers = ["BND", "AGG", "IEF", "TLT", "BIL"]  # More bond ETF options
-            max_retries = 3  # Increased retries
-            retry_delay = 2  # Increased delay
-            
-            for ticker in tickers:
-                logger.info(f"Trying ticker {ticker} for Barclays US Aggregate")
-                for attempt in range(max_retries):
-                    try:
-                        agg = yf.Ticker(ticker)
-                        # Add a timeout to the history call
-                        agg_data = agg.history(period=period, interval=interval, timeout=10)
-                        if not agg_data.empty and len(agg_data) > 10:
-                            logger.info(f"Successfully fetched Barclays US Aggregate data using {ticker}")
-                            break
-                        else:
-                            logger.warning(f"Empty or insufficient data for {ticker}, attempt {attempt + 1}/{max_retries}")
-                            if attempt < max_retries - 1:
-                                time.sleep(retry_delay)
-                    except Exception as e:
-                        logger.error(f"Error fetching {ticker}: {str(e)}")
-                        if attempt < max_retries - 1:
-                            time.sleep(retry_delay)
-                if not agg_data.empty and len(agg_data) > 10:
-                    break
-            
-            if not isinstance(agg_data, pd.DataFrame):
-                logger.error("AGG data is not a DataFrame")
+            agg = yf.Ticker("AGG")
+            agg_data = agg.history(period=period, interval=interval, timeout=10)
+            if not agg_data.empty and len(agg_data) > 10:
+                logger.info("Successfully fetched AGG data")
+            else:
+                logger.warning("Empty or insufficient AGG data")
                 agg_data = pd.DataFrame()
-            elif agg_data.empty:
-                logger.error("AGG data is empty after trying all tickers")
-                st.error("Failed to fetch Barclays US Aggregate data")
-            elif 'Close' not in agg_data.columns:
-                logger.error("AGG data missing 'Close' column")
-                st.error("AGG data is invalid")
         except Exception as e:
             logger.error(f"Error fetching AGG data: {str(e)}")
             agg_data = pd.DataFrame()
             
-        # Fetch ACWX data
+        # Fetch ACWX data - use only the most reliable ticker
         try:
-            # Try multiple tickers for MSCI ACWI ex US with retries
-            tickers = ["ACWX", "VEU", "VXUS", "IXUS", "IEFA"]  # More international ETF options
-            max_retries = 3  # Increased retries
-            retry_delay = 2  # Increased delay
-            
-            for ticker in tickers:
-                logger.info(f"Trying ticker {ticker} for MSCI ACWI ex US")
-                for attempt in range(max_retries):
-                    try:
-                        acwx = yf.Ticker(ticker)
-                        # Add a timeout to the history call
-                        acwx_data = acwx.history(period=period, interval=interval, timeout=10)
-                        if not acwx_data.empty and len(acwx_data) > 10:
-                            logger.info(f"Successfully fetched MSCI ACWI ex US data using {ticker}")
-                            break
-                        else:
-                            logger.warning(f"Empty or insufficient data for {ticker}, attempt {attempt + 1}/{max_retries}")
-                            if attempt < max_retries - 1:
-                                time.sleep(retry_delay)
-                    except Exception as e:
-                        logger.error(f"Error fetching {ticker}: {str(e)}")
-                        if attempt < max_retries - 1:
-                            time.sleep(retry_delay)
-                if not acwx_data.empty and len(acwx_data) > 10:
-                    break
-            
-            if not isinstance(acwx_data, pd.DataFrame):
-                logger.error("ACWX data is not a DataFrame")
+            acwx = yf.Ticker("ACWX")
+            acwx_data = acwx.history(period=period, interval=interval, timeout=10)
+            if not acwx_data.empty and len(acwx_data) > 10:
+                logger.info("Successfully fetched ACWX data")
+            else:
+                logger.warning("Empty or insufficient ACWX data")
                 acwx_data = pd.DataFrame()
-            elif acwx_data.empty:
-                logger.error("ACWX data is empty after trying all tickers")
-                st.error("Failed to fetch MSCI ACWI ex US data")
-            elif 'Close' not in acwx_data.columns:
-                logger.error("ACWX data missing 'Close' column")
-                st.error("ACWX data is invalid")
         except Exception as e:
             logger.error(f"Error fetching ACWX data: {str(e)}")
             acwx_data = pd.DataFrame()

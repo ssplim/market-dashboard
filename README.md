@@ -1,38 +1,36 @@
 # Market Returns Dashboard
 
-A Streamlit-based dashboard that displays real-time market returns for major indices including:
-- Russell 3000 Index
-- Barclays US Aggregate Bond Index
-- MSCI ACWI ex US Index
+A Streamlit-based dashboard for tracking market returns across different indices.
 
 ## Features
-- Year-to-Date, Quarter-to-Date, and Month-to-Date returns
-- Interactive performance charts
-- Real-time data updates
-- Last update timestamps for each index
-
-## Requirements
-- Python 3.8+
-- Streamlit
-- yfinance
-- pandas
-- plotly
-- pytz
+- Real-time market data from Yahoo Finance
+- Performance tracking for multiple indices
+- Interactive charts and visualizations
+- Automatic data updates
 
 ## Installation
-1. Clone this repository
+1. Clone the repository
 2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-## Running Locally
+## Usage
+Run the dashboard:
 ```bash
 streamlit run market_dashboard.py
 ```
 
-## Deployment
-This dashboard is designed to be deployed on Streamlit Cloud. The `requirements.txt` file contains all necessary dependencies.
+Access the dashboard at:
+- Local: http://localhost:8501
+- Network: http://[your-ip]:8501
+
+## Dependencies
+- streamlit==1.32.0
+- yfinance==0.2.55
+- pandas==2.2.1
+- plotly==5.18.0
+- pytz==2024.1
 
 ## Data Sources
 - Market data is sourced from Yahoo Finance using the yfinance library
